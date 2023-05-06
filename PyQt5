@@ -1,0 +1,168 @@
+import sys
+from PyQt5.QtWidgets import QApplication, QWidget, QTableWidget, QTableWidgetItem, QCheckBox, QPushButton
+import pandas as pd
+import openpyxl
+from PyQt5.QtWidgets import QMessageBox
+
+class ExcelTable(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        # Excel dosyasını oku
+        df = pd.read_excel("C:\\Users\\dell\\Desktop\\OBS.xlsx", usecols='A:AM')
+        df = df.fillna('')
+
+        # Verileri tabloya aktar
+        self.table = QTableWidget(self)
+        self.table.setRowCount(len(df.index))
+        self.table.setColumnCount(len(df.columns) + 1)  # Onay kutusu için 1 ekstra sütun
+        for i in range(len(df.index)):
+            for j in range(len(df.columns)):
+                if j == 0:
+                    # Her satıra bir onay kutusu ekle
+                    chk_box_item = QTableWidgetItem()
+                    chk_box = QCheckBox()
+                    chk_box.setChecked(False)
+                    self.table.setCellWidget(i, j, chk_box)
+                self.table.setItem(i, j+1, QTableWidgetItem(str(df.iloc[i, j])))
+
+
+        # Onay kutusu sütununu başa taşı
+        self.table.horizontalHeader().moveSection(0, 0)
+
+        # Boş bir buton oluştur
+        self.button = QPushButton(self)
+        self.button.setText("+")
+        self.button.setFixedSize(50, 50)
+        self.button.clicked.connect(self.on_button_click)
+
+        # Pencere boyutunu ayarla
+        self.setGeometry(100, 100, 800, 600)
+
+        # Tablo boyutunu ayarla ve pencereye ekle
+        self.table.resize(1750, 500)
+        self.table.setHorizontalHeaderLabels([''] + df.columns.tolist())  # Onay kutusu için sütun başlığı ekle
+        self.table.setVerticalHeaderLabels(df.index.astype(str))
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setSelectionMode(QTableWidget.SingleSelection)
+        self.table.setColumnWidth(1, 15)
+
+        # Başlık boyutlarını ayarla
+        self.table.horizontalHeader().setFixedHeight(50)
+        self.table.verticalHeader().setFixedWidth(100)
+
+        # Sütun genişliklerini içeriğe göre ayarla
+        self.table.resizeColumnsToContents()
+
+
+
+        # Butonu ekle
+        self.button.move(1760, 50)
+        self.table.show()
+        self.button.show()
+
+    def on_button_click(self):
+        # Seçili satırları al
+        selected_rows = []
+        for i in range(self.table.rowCount()):
+            chk_box = self.table.cellWidget(i, 0)
+            if chk_box.isChecked():
+                selected_rows.append(i)
+        self.button1 = QPushButton(self)
+        self.button1.setText("Clear Row")
+        self.button1.setFixedSize(75, 50)
+
+        self.button2 = QPushButton(self)
+        self.button2.setText("Clear All")
+        self.button2.setFixedSize(75, 50)
+
+        self.button3 = QPushButton(self)
+        self.button3.setText("Export")
+        self.button3.setFixedSize(75, 50)
+
+        # Butonları ekle
+        self.button1.move(1760, 550)
+        self.button2.move(1760, 610)
+        self.button3.move(1760, 670)
+        self.button1.show()
+        self.button2.show()
+        self.button3.show()
+
+
+
+        # Yeni tablo oluştur
+        new_table = QTableWidget(self)
+        new_table.setRowCount(len(selected_rows))
+        new_table.setColumnCount(self.table.columnCount())
+        new_table.setHorizontalHeaderLabels(
+            self.table.horizontalHeaderItem(i).text() for i in range(self.table.columnCount()))
+
+        for i, row in enumerate(selected_rows):
+            for j in range(self.table.columnCount()):
+                item = self.table.item(row, j)
+                if item is not None:
+                    new_table.setItem(i, j, QTableWidgetItem(item.text()))
+
+        # Pencere boyutunu ayarla ve yeni tabloyu göster
+        new_table.setGeometry(5, 520, 1740, 450)
+        new_table.show()
+
+        def on_button1_click():
+            # Seçili hücrenin indeksini al
+            cell = new_table.currentItem()
+            if cell is not None:
+                # Hücrenin bulunduğu satırın indeksini al
+                row = cell.row()
+                # Satırı tablodan sil
+                new_table.removeRow(row)
+
+        def on_button2_click():
+            # Yeni tablodaki satır sayısını al
+            row_count = new_table.rowCount()
+            # Tüm satırları sil
+            for i in range(row_count):
+                new_table.removeRow(0)
+
+        def on_button3_click():
+            # Open the Excel workbook
+            wb = openpyxl.load_workbook("C:\\Users\\dell\\Desktop\\Demand.xlsx")
+            sheet = wb.active
+
+            # Find the first empty row in the worksheet
+            row = 1
+            while sheet.cell(row, 1).value is not None:
+                row += 1
+
+            # Write the data to the worksheet
+            for i in range(new_table.rowCount()):
+                data = []
+                for j in range(new_table.columnCount()):
+                    item = new_table.item(i, j)
+                    if item is not None:
+                        data.append(item.text())
+                for k, value in enumerate(data):
+                    sheet.cell(row + i, k + 1).value = value
+
+            # Save the changes to the workbook
+            wb.save("C:\\Users\\dell\\Desktop\\Demand.xlsx")
+
+            # Display a message box
+            QMessageBox.information(self, "Success!", "Demand has been successfully added.")
+
+        # Button 1'e fonksiyon ekle
+        self.button1.clicked.connect(on_button1_click)
+
+        # Button 2'e fonksiyon ekle
+        self.button2.clicked.connect(on_button2_click)
+
+
+        # Button 3'e fonksiyon ekle
+        self.button3.clicked.connect(on_button3_click)
+
+
+if __name__ == '__main__':
+    app = QApplication([])
+    ex = ExcelTable()
+    ex.show()
+    sys.exit(app.exec_())
